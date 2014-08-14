@@ -1,0 +1,2 @@
+MIT LICENSE
+Copyright 2013 ~ 2014 YanagiEiichi, http://www.web-tinker.com/
