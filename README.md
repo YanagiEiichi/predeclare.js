@@ -9,7 +9,7 @@ void preload(file,map[,methods][,immediate]);
 ###基本用法
 　　`map`参数的格式，可以是字符串、数组、对象的有机组合。比如：
 ```JavaScript
-preload("filepath",{$:["get()","set()"]});
+preload("filepath",{$:["get()","post()"]});
 //等价与
 preload("filepath",["$.get()","$.post()"]);
 ```
