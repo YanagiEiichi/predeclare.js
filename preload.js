@@ -1,11 +1,10 @@
-//异步方法预加载模块
-//作者：次碳酸钴（admin@web-tinker.com）
+//admin@web-tinker.com
 
 var preload=function(){
   var root={},loader={};
   preload.load=load;
   return preload;
-  function preload(file,map,methods,immediate){ //接口
+  function preload(file,map,methods,immediate){
     if(file in root)return false;
     if(typeof methods=="boolean")immediate=methods,methods=null;
     if(methods)methods=build(methods);
@@ -15,7 +14,7 @@ var preload=function(){
       generate(o,root[file],methods,file);
     return true;
   };
-  function flatten(s){ //参数扁平化处理（全部转换成字符串完整路径）
+  function flatten(s){
     if(typeof s=="string")return [s];
     var i,j,t,r=[];
     if(s instanceof Array)
@@ -24,30 +23,29 @@ var preload=function(){
       for(i in s)for(j in t=flatten(s[i]))r.push(i+"."+t[j]);
     return Array.prototype.concat.apply([],r);
   };
-  function build(s){ //建立路径簇
+  function build(s){
     var m,n,i,o,t;
-    var r=/([$\w-]+)(\(\))?/g; //检测是不是调用
+    var r=/([$\w-]+)(\(\))?/g;
     var cluster=[];
     cluster.map={};
     for(s=flatten(s),i=0;i<s.length;i++){
       t=[],o=cluster;
       while(m=r.exec(s[i])){
         name=m[1],isFunction=m[2];
-        if(m[2]){ //如果是调用
-          //创建一个唯一标识符n，如果n不在map中就创建它
+        if(m[2]){
           (n=t+m[1]) in o.map||o.push(o.map[n]=makeNode(m[1],t)),
           o=o.map[n].children,t=[];
-        }else //否则只是路径则
+        }else
           t.push(m[1]);
         if(t.length)o.push(makeNode(null,t));
       };
     };
     return cluster;
   };
-  function generate(path,heap,methods,file){ //生成接口操作对象
+  function generate(path,heap,methods,file){
     var base=cast(path,this),name=path.name;
     if(name)if(!(name in base)){
-      if(base==window)globalEval("var "+name+";"); //解决IE8-的BUG
+      if(base==window)globalEval("var "+name+";");
       base[name]=agent;
     };
     function agent(){
@@ -63,13 +61,13 @@ var preload=function(){
       return interface;
     };
   };
-  function invoke(func,that,args){ //调用函数（包括new的处理）
+  function invoke(func,that,args){
     if(that==1){
       for(var s=[],i=0;i<args.length;i++)s.push("e"+i);
       return Function(s+="","return new this("+s+")").apply(func,args);
     }else return func.apply(that,args);
   };
-  function actualCall(call,actualbase){ //调用Call实例
+  function actualCall(call,actualbase){
     var i,l,result,path=call.path,heap=call.heap,name=path.name;
     actualbase=cast(path,actualbase);
     result=invoke(actualbase[name],call.base||actualbase,call.args);
@@ -79,29 +77,29 @@ var preload=function(){
     for(i=0,l=heap.length;i<l;i++)actualCall(heap[i],result);
     heap.solve=makeSolve(result);
   };
-  function cast(path,base){ //浇铸路径
+  function cast(path,base){
     var s=path.path,i=0,name=s[i];
-    if(base==window&&!(name in base)) //解决IE8-的BUG
+    if(base==window&&!(name in base))
       globalEval("var "+name+";");
     for(;name=s[i];i++)base=base[name]=Object(base[name]);
     return base;
   };
-  function makeNode(name,path){ //生成路径结构
+  function makeNode(name,path){
     var o={name:name,path:path,children:[]};
     return o.children.map={},o;
   };
-  function makeSolve(result){ //生成完成回调
+  function makeSolve(result){
     return function(path,base,agent,args){
       var func=cast(path,result)[path.name];
       if(func!=agent)return invoke(func,base||result,args);
     };
   };
-  function touch(file){ //准备请求文件
+  function touch(file){
     if(file in loader)return;
     loader[file]=1;
     preload.load([file],onload);
   };
-  function load(requires,onload){ //自带的加载方法
+  function load(requires,onload){
     var host,i;
     for(i=0;i<requires.length;i++)
       host=requires[i].match(/^https?:\/\/([^\/]+)|$/)[1],
@@ -109,14 +107,14 @@ var preload=function(){
         ?loadWithXHR(requires[i],onload)
         :loadWithDOM(requires[i],onload);
   };
-  function loadWithXHR(file,onload){ //XHR方式加载
+  function loadWithXHR(file,onload){
     var xhr=window.XMLHttpRequest
       ?new XMLHttpRequest
       :new ActiveXObject("Microsoft.XMLHTTP");
     xhr.onreadystatechange=function(){
       if(xhr.readyState<4||xhr.status!=200)return;
       try{
-        new Function(xhr.responseText); //检测语法
+        new Function(xhr.responseText);
         throw false;
       }catch(e){
         if(e)return loadWithDOM(file,onload);
@@ -125,7 +123,7 @@ var preload=function(){
       };
     },xhr.open("GET",file,true),xhr.send();
   };
-  function loadWithDOM(file,onload){ //DOM方式加载
+  function loadWithDOM(file,onload){
     var head,script,ready;
     head=document.documentElement.firstChild;
     script=document.createElement("script");
@@ -141,7 +139,7 @@ var preload=function(){
         :head.insertBefore(script,head.firstChild);
     },ready();
   };
-  function onload(file){ //加载完成并分配工作
+  function onload(file){
     if(loader[file]!=1)return;
     loader[file]=2;
     for(var i=0,s=root[file],l=s.length;i<l;i++)actualCall(s[i],window);
