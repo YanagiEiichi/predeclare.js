@@ -71,9 +71,6 @@ var preload=function(){
     var i,l,result,path=call.path,heap=call.heap,name=path.name;
     actualbase=cast(path,actualbase);
     result=invoke(actualbase[name],call.base||actualbase,call.args);
-    for(i=0,l=heap.length;i<l;i++){
-      heap[i];
-    };
     for(i=0,l=heap.length;i<l;i++)actualCall(heap[i],result);
     heap.solve=makeSolve(result);
   };
