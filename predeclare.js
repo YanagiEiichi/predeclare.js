@@ -1,10 +1,14 @@
-//admin@web-tinker.com
+/*********************************************************
+Author: ¥ŒÃºÀ·Ó‹£®admin@web-tinker.com£©
+Latest: 2014-10-11
+Git: https://github.com/YanagiEiichi/predeclare.js
+*********************************************************/
 
-var preload=function(){
+var predeclare=function(){
   var root={},loader={};
-  preload.load=load;
-  return preload;
-  function preload(file,map,methods,immediate){
+  predeclare.load=load;
+  return predeclare;
+  function predeclare(file,map,methods,immediate){
     if(file in root)return false;
     if(typeof methods=="boolean")immediate=methods,methods=null;
     if(methods)methods=build(methods);
@@ -94,7 +98,7 @@ var preload=function(){
   function touch(file){
     if(file in loader)return;
     loader[file]=1;
-    preload.load([file],onload);
+    predeclare.load([file],onload);
   };
   function load(requires,onload){
     var host,i;
