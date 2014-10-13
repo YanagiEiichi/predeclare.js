@@ -1,5 +1,9 @@
-﻿* [文档（中文）](https://github.com/YanagiEiichi/predeclare.js/wiki/%E6%96%87%E6%A1%A3)
+﻿predeclare.js
+===========
+An asynchronous module definition library.
+The predeclaration concept is imported.
 
-* [ドキュメント（日本語）](https://github.com/YanagiEiichi/predeclare.js/wiki/%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88)
+My slogan is:
+  Just Call! Before Definition!
 
-* [Document (English)](https://github.com/YanagiEiichi/predeclare.js/wiki/Document)
+You can git the test program to learn more.
