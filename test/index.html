@@ -1,0 +1,54 @@
+<script src="../predeclare.js"></script>
+a: <input id="a" value="3" /><hr/>
+b: <input id="b" value="4" /><hr/>
+<button id="btn">sqrt(a*a+b*b)</button><hr/>
+<script>
+//
+//    "#" means methods declaration start here.
+//                      ©¦
+//                      ©¦
+//                      ©¦©°©¤©¤©¤ "!" means this module is
+//                      ©¦©¦    demand loading.
+//                      ©¦©¦     
+//                      ©¦©¦    ©°©¤ This is a method name, it can be
+//                      ©¦©¦    ©¦  calling whatere the module load
+//                      ©¦©¦    ©¦  completely.
+//                      ©¦©¦    ©¦
+//                      ¡ý¡ý    ¡ý
+require(["mydom","mymath#!pythagorus"],function(mydom,mymath){
+  var btn=mydom.getById("btn");
+  var a=mydom.getById("a");
+  var b=mydom.getById("b");
+  mydom.bindEvent(btn,"click",function(){
+    mymath.pythagorus(a.value,b.value,function(result){
+      mydom.log(result);
+    });
+  });
+});
+
+
+//          This methods is not defined in jQuery,
+//          an error can be throw, if it's called.
+//                              ¡ý 
+require(["jquery#!css,each,one,fuck","mylog"],function($,log){
+  log("Now, the jQuery has not completely loaded yet.");
+  log("But the 'mylog' module has been loaded.");
+  log("Look! I'm using the 'log' function to put message.");
+  $("body").css("background","#CCC").each(function(){
+    log("Here is jQuery's 'each' function callback.");
+    log("That's means jQuery has loaded completely.");
+    log("OK, you can see the background color has changed.");
+    log("Why don't you try to click it?");
+  }).one("click",function(){
+    log("Well! The click event is now fired.");
+    log("Try to call the 'fuck' method in next click.");
+    $(this).one("click",function(){
+      setTimeout(function(){
+        log("An error has been thrown when 'fuck' method is called.");
+        log("Because the 'fuck' is not a jQuery function.");
+      });
+      $.fuck();
+    });
+  });
+});
+</script>
