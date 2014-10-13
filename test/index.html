@@ -1,20 +1,20 @@
-<script src="../predeclare.js"></script>
+ï»¿<script src="../predeclare.js"></script>
 a: <input id="a" value="3" /><hr/>
 b: <input id="b" value="4" /><hr/>
 <button id="btn">sqrt(a*a+b*b)</button><hr/>
 <script>
 //
 //    "#" means methods declaration start here.
-//                      ©¦
-//                      ©¦
-//                      ©¦©°©¤©¤©¤ "!" means this module is
-//                      ©¦©¦    demand loading.
-//                      ©¦©¦     
-//                      ©¦©¦    ©°©¤ This is a method name, it can be
-//                      ©¦©¦    ©¦  calling whatere the module load
-//                      ©¦©¦    ©¦  completely.
-//                      ©¦©¦    ©¦
-//                      ¡ý¡ý    ¡ý
+//                      â”‚
+//                      â”‚
+//                      â”‚â”Œâ”€â”€â”€ "!" means this module is
+//                      â”‚â”‚    demand loading.
+//                      â”‚â”‚     
+//                      â”‚â”‚    â”Œâ”€ This is a method name, it can be
+//                      â”‚â”‚    â”‚  calling whatere the module load
+//                      â”‚â”‚    â”‚  completely.
+//                      â”‚â”‚    â”‚
+//                      â†“â†“    â†“
 require(["mydom","mymath#!pythagorus"],function(mydom,mymath){
   var btn=mydom.getById("btn");
   var a=mydom.getById("a");
@@ -29,7 +29,7 @@ require(["mydom","mymath#!pythagorus"],function(mydom,mymath){
 
 //          This methods is not defined in jQuery,
 //          an error can be throw, if it's called.
-//                              ¡ý 
+//                              â†“ 
 require(["jquery#!css,each,one,fuck","mylog"],function($,log){
   log("Now, the jQuery has not completely loaded yet.");
   log("But the 'mylog' module has been loaded.");
