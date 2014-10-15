@@ -1,0 +1,28 @@
+﻿<script src="../predeclare.js"></script>
+a: <input id="a" value="3" /><hr/>
+b: <input id="b" value="4" /><hr/>
+<button id="btn">sqrt(a*a+b*b)</button><hr/>
+<script>
+//
+//    "#" means methods declaration start here.
+//                      │
+//                      │
+//                      │┌─── "!" means this module is
+//                      ││    demand loading.
+//                      ││     
+//                      ││    ┌─ This is a method name, it can be
+//                      ││    │  calling whatere the module load
+//                      ││    │  completely.
+//                      ││    │
+//                      ↓↓    ↓
+require(["mydom","mymath#!pythagorus"],function(mydom,mymath){
+  var btn=mydom.getById("btn");
+  var a=mydom.getById("a");
+  var b=mydom.getById("b");
+  mydom.bindEvent(btn,"click",function(){
+    mymath.pythagorus(a.value,b.value,function(result){
+      mydom.log(result);
+    });
+  });
+});
+</script>

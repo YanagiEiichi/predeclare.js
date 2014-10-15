@@ -1,6 +1,6 @@
 ﻿/*********************************************************
 Author: 次碳酸钴（admin@web-tinker.com）
-Latest: 2014-10-13
+Latest: 2014-10-14
 Git: https://github.com/YanagiEiichi/predeclare.js
 *********************************************************/
 
@@ -32,6 +32,12 @@ var define,require;
       }));
     };
   }();
+  //To wrap the interface function by a simple function,
+  //in order to protect the function code.
+  var wrap=function(NativeCode){
+    "use strict";
+    return function(){return NativeCode.apply(this,arguments)};
+  };
   //Define a globalEval function and considered IE7-.
   var globalEval=global.execScript||eval;
 
@@ -44,22 +50,29 @@ var define,require;
   //resolved, but it's callback always pass a resolved module.
   var modules={},requireId=1;
   //Define the "require" interface.
-  require=function(dependencies,callback){
+  require=wrap(function(dependencies,callback){
+    //Make the function overload.
     if(typeof dependencies=="function")
       callback=dependencies,dependencies=[];
-    //Return a exports if the parameter is a module id.
-    if(typeof dependencies=="string"){
-      var dependency=parseDependencyString(dependencies);
-      var getModule=modules[dependency.id];
-      if(!getModule)throw err("MODULE_NOT_FOUND");
-      return getModule().exports;
-    }
-    //Otherwise define a temporary modules and initialize it.
-    else {
-      var id="$"+Date.now()+"_"+requireId++;
-      define(id,dependencies,callback);
-      modules[id]();
-    };
+    //Convert the dependencies to an array.
+    var deps,wasstr=typeof dependencies=="string";
+    if(dependencies==null)deps=[];
+    else if(wasstr)deps=[dependencies];
+    else deps=Array.prototype.slice.call(dependencies,0);
+    //Define and return an temporary module and initialize it.
+    var id="$"+Date.now()+"_"+requireId++;
+    define(id,deps,callback);
+    var results=modules[id]().results||{};
+    //Return first result if the dependencies was a string.
+    if(wasstr)return results[0];
+    return results;
+  });
+  //Define the "config" method on "require" interface,
+  //that use to ...
+  var settings={paths:{},baseUrl:""};
+  require.config=function(e){
+    settings=e=e||{paths:{},baseUrl:""};
+    e.baseUrl+="",e.paths=e.paths||{};
   };
   //Define the "define" interface.
   var inlineRequireMatcher=/require\s*\(\s*(["'])((?:\\[\s\S]|.)+?)(\1)\s*\)/g;
@@ -90,8 +103,7 @@ var define,require;
       inlineRequires.push(RegExp.$2);
     //Put a function to module collection that use to get module.
     predefineModule(id,dependencies,factory,inlineRequires);
-    modules[id].strengthen();
-    return modules[id];
+    return modules[id].strengthen();
   };
   //Set the amd flag to true.
   define.amd=true;
@@ -139,7 +151,10 @@ var define,require;
         waitingList.pop()(module);
     };
     //To change 0 state to 1.
-    modules[id].strengthen=function(){ if(state==0)state=1; };
+    modules[id].strengthen=function(){
+      if(state==0)state=1;
+      return module;
+    };
     //To detect that is wrak.
     modules[id].isWeak=function(){ return state==0; };
     return modules[id];
@@ -162,7 +177,9 @@ var define,require;
         case "module":return complete({exports:module});
         //Custom module.
         default:
-          var uri=dependency.id+".js";
+          var uri=settings.paths[dependency.id]||dependency.id;
+          if(uri.slice(-3)!=".js")uri+=".js";
+          if(!/^(\w+:|\/)/.test(uri))uri=settings.baseUrl+uri;
           var getModule=modules[dependency.id]||modules[uri];
           if(getModule)return getModule(complete);
           if(dependency.methods){
@@ -175,7 +192,8 @@ var define,require;
                 var getModule=modules[uri]||modules[dependency.id];
                 if(getModule&&!getModule.isWeak())
                   return getModule(done);
-                define(dependency.id)(done);
+                define(dependency.id);
+                require(dependency.id,done);
               });
               function done(module){
                 exports.__expose__(module.exports);
@@ -187,7 +205,8 @@ var define,require;
           }else load(uri,function(){
             var getModule=modules[uri]||modules[dependency.id];
             if(getModule)return getModule(complete);
-            define(dependency.id)(complete);
+            define(dependency.id);
+            require(dependency.id,complete);
           });
       };
       function complete(module){
@@ -201,7 +220,7 @@ var define,require;
     var dependency={methods:null,defer:false};
     s=(s+"").split("#");
     dependency.id=s[0];
-    if(s[1]){
+    if(s[1]!==void 0){
       if(s[1].charAt(0)=="!"){
         dependency.defer=true;
         s[1]=s[1].slice(1);
@@ -225,7 +244,8 @@ var define,require;
         if(typeof path=="string")path=path.match(/[$\w]+/g)||[];
         //Walk along the path to the end and build the path. 
         for(j=0,base=root;j<path.length;j++)
-          base=base[path[j]]=build(root,path,j);
+          if(base[path[j]]&&base[path[j]].prototype)base=base[path[j]];
+          else base=base[path[j]]=build(root,path,j);
       };
       var result=build(root,null,-1);
       //Store the genes in order to generate descendants.
@@ -238,15 +258,13 @@ var define,require;
     };
     //To build a path item.
     var build=function(root,path,index){
-      //In order to protect the function code,
-      //wrap the interface function by a simple function.
-      var interface=function(){"use strict";return NativeCode(this,arguments)};
+      var interface=wrap(NativeCode);
       //Use the interface function as a heap if without root.
       root=root||interface;
       return interface;
       //Use simple function name.
-      function NativeCode(that,args){
-        var genuine=root.__genuine__;
+      function NativeCode(){
+        var that=this,args=arguments,genuine=root.__genuine__;
         //If the genuine object of the fake object is exist,
         //a genuine result can be return, else return a fake result.
         if(genuine){
@@ -285,7 +303,7 @@ var define,require;
     //and recurs all recorded actions,
     //and diffuse to descendants.
     Fake.prototype.__expose__=function(genuine){
-      this.__genuine__=genuine; //
+      this.__genuine__=genuine; //Save the genuine object.
       var item,base,queue,genuineResult,i,j;
       var path,index,that,args,result; //Declare record fields.
       //Get records queue, and delete property from instance.
