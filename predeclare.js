@@ -1,6 +1,6 @@
 ﻿/*********************************************************
 Author: 次碳酸钴（admin@web-tinker.com）
-Latest: 2014-10-14
+Latest: 2014-10-18
 Git: https://github.com/YanagiEiichi/predeclare.js
 *********************************************************/
 
@@ -61,21 +61,21 @@ var define,require;
     else deps=Array.prototype.slice.call(dependencies,0);
     //Define and return an temporary module and initialize it.
     var id="$"+Date.now()+"_"+requireId++;
-    define(id,deps,callback);
-    var results=modules[id]().results||{};
-    //Return first result if the dependencies was a string.
-    if(wasstr)return results[0];
-    return results;
+    var args=[];
+    define(id,deps,function(){
+      callback&&callback.apply(this,arguments);
+      return wasstr?arguments[0]:Array.prototype.slice(arguments,0);
+    });
+    return modules[id].getExports();
   });
-  //Define the "config" method on "require" interface,
-  //that use to ...
+  //Define the "config" method on "require" interface.
   var settings={paths:{},baseUrl:""};
   require.config=function(e){
     settings=e=e||{paths:{},baseUrl:""};
     e.baseUrl+="",e.paths=e.paths||{};
   };
   //Define the "define" interface.
-  var inlineRequireMatcher=/require\s*\(\s*(["'])((?:\\[\s\S]|.)+?)(\1)\s*\)/g;
+  var inlineRequireMatcher=/require\s*\(\s*(["'])((?:\\[\s\S]|[^#])+?)(\1)\s*\)/g;
   define=function(id,dependencies,factory){
     //Make function overload.
     (function(){
@@ -90,133 +90,145 @@ var define,require;
       if(id===void 0)id=getCurrentId();
       if(!id)throw err("NEED_ID");
     })();
-    if(modules[id]&&!modules[id].isWeak())return;
-    //To save inline requires.
-    var inlineRequires=[];
-    //Convert factory to a function if it's not a function.
+    //Parse the id as the Predeclaration Grammar.
+    var predeclaration=parsePredeclaration(id);
+    var id=predeclaration.id;
+    //Return, If this module is already exists.
+    if(modules[id])return;
+    //Make the factory to a function if it's not a function.
     if(typeof factory!="function")factory=function(e){
       return function(){return e;};
     }(factory);
-    //Match all inline requires from factory function,
-    //if factory is originally a function.
-    else while(inlineRequireMatcher.exec(factory))
-      inlineRequires.push(RegExp.$2);
-    //Put a function to module collection that use to get module.
-    predefineModule(id,dependencies,factory,inlineRequires);
-    return modules[id].strengthen();
+    //Put the module to the module collection.
+    modules[id]=new Module(predeclaration,dependencies,factory);
   };
   //Set the amd flag to true.
   define.amd=true;
-  //To define a function that use to initialize and get module.
-  var predefineModule=function(id,dependencies,factory,inlineRequires){
-    //Return this module if it's already exists and not weak.
-    if(modules[id]&&!modules[id].isWeak())return modules[id];
-    modules[id]=function(oncomplete){
-      //Return and call back if the module is already fetched.
-      if(state==3)return oncomplete&&oncomplete(module),module;
-      //Hold the callback function.
-      if(typeof oncomplete=="function")waitingList.push(oncomplete);
-      //Fetch dependencies if the module is not yet initialized.
-      if(state==1)
-        state=2,
-        fetchDependencies(module,dependencies||[],function(results){
-          module.results=results; //Save the fetching result.
-          //Fetch inline dependencies if it's not empty.
-          inlineRequires&&inlineRequires.length
-            ?require(inlineRequires,fetchComplete)
-            :fetchComplete();
-        }); //Set fetching state code.
-        //Return the unresolved module.
-      return module;
-    };
-    //Define the unresolved module.
-    var module={id:id,exports:{}};
-    //Define the state code initial 0.
-    //state=0 means this is a weak module, it can be overridden.
-    //state=1 means the module is not yet initialized.
-    //state=2 means dependencies is fetching.
-    //state=3 means dependencies fetch completely.
-    var state=0;
-    //The requires can be holding while the module is fetching.
-    var waitingList=[];
-    //This function can be calling when the module fetch completely.
-    var fetchComplete=function(){
-      //Call the factory function pass fetching results as arguments.
-      var result=factory&&factory.apply(module.exports,module.results);
-      //Ignore undefined result.
-      if(result!==void 0)module.exports=result;
-      state=3; //Set completion state code.
-      //Deal and free the waitingList.
-      while(waitingList.length)
-        waitingList.pop()(module);
-    };
-    //To change 0 state to 1.
-    modules[id].strengthen=function(){
-      if(state==0)state=1;
-      return module;
-    };
-    //To detect that is wrak.
-    modules[id].isWeak=function(){ return state==0; };
-    return modules[id];
-  };
-  //To fetch the dependencies chain.
-  var fetchDependencies=function(module,dependencies,oncomplete){
-    var s=Array.prototype.slice.call(dependencies||[],0);
-    if(s[0]===void 0)s[0]="require";
-    if(s[1]===void 0)s[1]="exports";
-    if(s[2]===void 0)s[2]="module";
-    var i,l=s.length,c=l,results=[];
-    for(i=0;i<l;i++)(function(i){
-      //Get id and method names from dependency string.
-      var dependency=parseDependencyString(s[i]);
-      //Fetch module.
-      switch(dependency.id){
-        //Internal modules.
-        case "require":return complete({exports:require});
-        case "exports":return complete({exports:module.exports});
-        case "module":return complete({exports:module});
-        //Custom module.
-        default:
-          var uri=settings.paths[dependency.id]||dependency.id;
-          if(uri.slice(-3)!=".js")uri+=".js";
-          if(!/^(\w+:|\/)/.test(uri))uri=settings.baseUrl+uri;
-          var getModule=modules[dependency.id]||modules[uri];
-          if(getModule)return getModule(complete);
-          if(dependency.methods){
-            var getModule=predefineModule(dependency.id);
-            var weakModule=getModule();
-            var exports=new Fake(dependency.methods);
-            exports.__oncall__=function(){
-              delete exports.__oncall__;
-              load(uri,function(){
-                var getModule=modules[uri]||modules[dependency.id];
-                if(getModule&&!getModule.isWeak())
-                  return getModule(done);
-                define(dependency.id);
-                require(dependency.id,done);
-              });
-              function done(module){
-                exports.__expose__(module.exports);
-              };
-            };
-            if(!dependency.defer)exports.__oncall__();
-            weakModule.exports=exports;
-            complete(weakModule);
-          }else load(uri,function(){
-            var getModule=modules[uri]||modules[dependency.id];
-            if(getModule)return getModule(complete);
-            define(dependency.id);
-            require(dependency.id,complete);
-          });
+  //Define the Module constructor.
+  var Module=function(predeclaration,dependencies,factory){
+    var module=this;
+    //Define an internal event that will be triggered when all the
+    //dependencies are resolved.
+    var onresolve;
+    //Define a "getExports" method that's used to get the "exports".
+    //It's a asynchronous method, pass the "exports" back by callback function.
+    //If the "exports" is not existed, wait until it's existing.
+    this.getExports=function(){
+      //Set the event handle of the internal event "onresolve".
+      //It's used to deal the callbackHolder of the getExports method.
+      onresolve=function(){
+        var callback;
+        while(callback=callbackHolder.pop())callback(module.exports);
       };
-      function complete(module){
-        results[i]=module.exports;
-        --c||oncomplete(results);
+      var callbackHolder=[];
+      return function(callback){
+        //Trigger the onfetchneeded event if defer flag is unset.
+        if(!predeclaration.defer)onfetchneeded();
+        //If the "exports" has existed, call synchronously back.
+        if(module.exports)return callback&&callback(module.exports),module.exports;
+        //Other case that this module is unresolved, hold the callback.
+        if(typeof callback=="function")callbackHolder.push(callback);
+      };
+    }();
+    //Initialize the "exports" to a fake object,
+    //if Predeclaration Grammar is used.
+    if(predeclaration.methods){
+      this.exports=new Fake(predeclaration.methods);
+      //Trigger the onfetchneeded event in first call if defer flag is set.
+      if(predeclaration.defer)this.exports.__oncall__=function(){
+        delete this.exports.__oncall__;
+        onfetchneeded();
+      };
+    };
+    //Define an internal event that will be triggered on fetch needed.
+    var onfetchneeded=function(){
+      //This is a one-off event.
+      onfetchneeded=function(){};
+      //Fetch the dependencies, and get their "exports", this process 
+      //may be asynchronous if any asynchronous module exists in the
+      //dependenciy list. otherwise no asynchronous module exists here,
+      //this process will be synchronous.
+      fetchDependencies(dependencies,function(results){
+        //Save the virtual exports and set the exports to an empty object.
+        var virtualExports=module.exports;
+        module.exports={};
+        //Set the default values of the results.
+        results[0]=results[0]||require;
+        results[1]=results[1]||module.exports;
+        results[2]=results[2]||module;
+        //Call the factory function and pass the results as its arguments.
+        var result=factory.apply(module.exports,results);
+        //If factory function return a defined value, use it as exports.
+        if(result!==void 0)module.exports=result;
+        //Expose the virtual exports with actual exports if it' existed.
+        if(virtualExports)virtualExports.__expose__(module.exports);
+        //Finally, trigger the onresolve event.
+        onresolve();
+      });
+    };
+  };
+  var fetchDependencies=function(dependencies,callback){
+    var results=[],count=dependencies.length;
+    if(count==0)return callback(results);
+    //Through all the dependencies.
+    for(var i=0;i<dependencies.length;i++)(function(index){
+      //Define an internal event that trigger when the exports is got.
+      function onresult(exports){
+        results[index]=exports;
+        //Call back, if all the dependencies are resolved.
+        --count||callback(results);
+      };
+      //Parse the dependency id as the Predeclaration Grammar.
+      var predeclaration=parsePredeclaration(dependencies[index]);
+      var id=predeclaration.id,methods=predeclaration.methods,module=modules[id];
+      //If the module is existed, Call its getExports methods and pass the
+      //"onresult" event handle as its callback function.
+      //This progress may be synchronous if the module is synchronous or
+      //has been resolved, otherwise it's asynchronous. 
+      if(module)module.getExports(onresult);
+      //Module is not existed.
+      else {
+        //Make an URI with dependency id.
+        var uri=settings.paths[id]||id;
+        if(uri.slice(-3)!=".js")uri+=".js";
+        if(!/^(\w+:|\/)/.test(uri))uri=settings.baseUrl+uri;
+        //If the Predeclaration Grammar is used.
+        if(methods)(function(){
+          //To used to launch the request.
+          var launch=function(){
+            load(id,uri,function(){
+              //Define this module to an empty module if it's not existed yet.
+              if(!modules[id])define(id,{});
+              //Get the exports while the module is resolved.
+              modules[id].getExports(function(exports){
+                //Expose the fake object with actual exports.
+                fake.__expose__(exports);
+              });
+            });
+          };
+          //Make a Fake object as a virtual module exports.
+          var fake=new Fake(methods);
+          //Don't launch until any predeclared methods is called, if defer flag
+          //of predeclaration is true, else launch immediately.
+          if(predeclaration.defer)fake.__oncall__=function(){
+            delete fake.__oncall__,launch();
+          }; else launch();
+          //Use the fake as the result.
+          onresult(fake);
+        })();
+        //Other case that Predeclaration Grammar isn't used.
+        //Launch immediately the request.
+        else load(id,uri,function(){
+          //Define this module to an empty module if it's not existed yet.
+          if(!modules[id])define(id,{});
+          //Get the exports while the module is resolved, and use it'as the result.
+          modules[id].getExports(onresult);
+        });
       };
     })(i);
   };
   //To parse dependency string
-  var parseDependencyString=function(s){
+  var parsePredeclaration=function(s){
     var dependency={methods:null,defer:false};
     s=(s+"").split("#");
     dependency.id=s[0];
@@ -326,6 +338,7 @@ var define,require;
 
   /************************ LOADER SECTION ************************/
   //To load a script and listen onload/onerror events.
+  //The four parameters are moduleId,uri,onload and onerror.
   var load=function(){
     //To make a solution that is loading with DOM.
     var makeDOMSolution=function(){
@@ -351,7 +364,7 @@ var define,require;
           },script.defer="defer";
         };
       //To send a request to server with SCRIPT element.
-      return function(uri,onload,onerror){
+      return function(moduleId,uri,onload,onerror){
         //Create and initialize a SCRIPT element.
         var script=document.createElement("script");
         initScript(script,function(){
@@ -359,7 +372,7 @@ var define,require;
         }),script.onerror=function(){
           head.removeChild(script);
           onerror(new Error("Network Error"));
-        },script.uri=script.src=uri;
+        },script.moduleId=moduleId,script.src=uri;
         //Insert the SCRIPT to HEAD and considered IE6-.
         head.insertBefore(script,head.firstChild);
       };
@@ -372,12 +385,12 @@ var define,require;
         ?function(){return new XMLHttpRequest;}
         //To create a XHR object for IE6-.
         :function(){return new ActiveXObject("Microsoft.XMLHTTP");}
-      return function(uri,onload,onerror){
+      return function(moduleId,uri,onload,onerror){
         //Create a XHR object and send request.
         var xhr=createXHR();
         xhr.onreadystatechange=function(){
           if(xhr.readyState<4)return;
-          currentId=uri;
+          currentId=moduleId;
           try{
             //It's a HTTP error if HTTP status code >= 400
             if(xhr.status<400){
@@ -393,8 +406,8 @@ var define,require;
     };
     //To make a solution that is loading with importScripts.
     var makeImportScriptsSolution=function(e){
-      return function(uri,onload,onerror){
-        currentId=uri;
+      return function(moduleId,uri,onload,onerror){
+        currentId=moduleId;
         try{ importScripts(uri); }
         catch(e){ return onerror(e); };
         currentId=void 0;
@@ -428,10 +441,10 @@ var define,require;
         throw err("UNKNOWN_ENVIRONMENT");
       break;
     };
-    return function(uri,onload,onerror){
+    return function(moduleId,uri,onload,onerror){
       var host=uri.match(/^https?:\/\/([^\/]+)|$/)[1];
       var isCrossDomain=host&&host!=currentHost;
-      solutions[isCrossDomain|0](uri,onload,onerror);
+      solutions[isCrossDomain|0](moduleId,uri,onload,onerror);
     };
   }();
   //To get the id of current active module.
@@ -441,14 +454,14 @@ var define,require;
     //non-IE
     if("currentScript" in document)return function(){
       var script=document.currentScript;
-      if(script)return script.uri;
+      if(script)return script.moduleId;
     };
     //IE10-
     if("readyState" in document.createElement("script"))
       return function(){
         var s=document.getElementsByTagName("script");
         for(var i=0,l=s.length;i<l;i++)
-          if(s[i].readyState=="interactive")return s[i].uri;
+          if(s[i].readyState=="interactive")return s[i].moduleId;
       };
     //Otherwise
     return function(){
@@ -457,7 +470,7 @@ var define,require;
         while(m.exec(s))r.push(RegExp.$1);
         r=r.pop(),s=document.getElementsByTagName("script");
         for(var i=0,l=s.length;i<l;i++)
-          if(s[i].src==r&&s[i].uri)return s[i].uri;
+          if(s[i].src==r&&s[i].moduleId)return s[i].moduleId;
       };
     };
   }(),currentId;
