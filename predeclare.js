@@ -60,7 +60,7 @@ var define,require;
     else if(wasstr)deps=[dependencies];
     else deps=Array.prototype.slice.call(dependencies,0);
     //Define and return an temporary module and initialize it.
-    var id="$"+Date.now()+"_"+requireId++;
+    var id="$"+new Date*1+"_"+requireId++;
     var args=[];
     define(id,deps,function(){
       callback&&callback.apply(this,arguments);
@@ -113,7 +113,7 @@ var define,require;
     //Define a "getExports" method that's used to get the "exports".
     //It's a asynchronous method, pass the "exports" back by callback function.
     //If the "exports" is not existed, wait until it's existing.
-    this.getExports=function(){
+    module.getExports=function(){
       //Set the event handle of the internal event "onresolve".
       //It's used to deal the callbackHolder of the getExports method.
       onresolve=function(){
@@ -133,10 +133,10 @@ var define,require;
     //Initialize the "exports" to a fake object,
     //if Predeclaration Grammar is used.
     if(predeclaration.methods){
-      this.exports=new Fake(predeclaration.methods);
+      module.exports=new Fake(predeclaration.methods);
       //Trigger the onfetchneeded event in first call if defer flag is set.
-      if(predeclaration.defer)this.exports.__oncall__=function(){
-        delete this.exports.__oncall__;
+      if(predeclaration.defer)module.exports.__oncall__=function(){
+        delete module.exports.__oncall__;
         onfetchneeded();
       };
     };
