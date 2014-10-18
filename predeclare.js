@@ -51,7 +51,7 @@ var define,require;
   //called). Those function return a module whatever unresolved or
   //resolved, but it's callback always pass a resolved module.
   (function(){
-    var modules={},requireId=1,anonymousDefinationQueue=[];
+    var modules={},requireId=1,anonymousQueue=[],uriMap={};
     //Define the "require" interface.
     require=wrap(function(dependencies,callback){
       //Make the function overload.
@@ -73,9 +73,9 @@ var define,require;
     });
     //Define the "config" method on "require" interface.
     var settings={paths:{},baseUrl:""};
-    require.config=function(e){
-      settings=e=e||{paths:{},baseUrl:""};
-      e.baseUrl+="",e.paths=e.paths||{};
+    require.config=function(args){
+      settings.paths=args.paths||{};
+      settings.baseUrl=args.baseUrl||"";
     };
     //Define the "define" interface.
     define=function(id,dependencies,factory){
@@ -89,11 +89,12 @@ var define,require;
             dependencies=s[i];
           else if(factory===void 0)factory=s[i];
         dependencies=dependencies||[];
-        if(id===void 0){
-          anonymousDefinationQueue.push([dependencies,factory]);
-          return;
-        };
+        //Try to get current uri and get the default id.
+        if(id===void 0)id=uriMap[getCurrentUri()];
       })();
+      //If the id is not specified, push other arguments to anonymous queue.
+      if(id===void 0)
+         return void anonymousQueue.push([dependencies,factory]);
       //Parse the id as the Predeclaration Grammar.
       var predeclaration=parsePredeclaration(id);
       var id=predeclaration.id;
@@ -111,6 +112,7 @@ var define,require;
     //Define the Module constructor.
     var Module=function(predeclaration,dependencies,factory){
       var module=this;
+      module.id=predeclaration.id;
       //Define an internal event that will be triggered when all the
       //dependencies are resolved.
       var onresolve;
@@ -194,12 +196,14 @@ var define,require;
         else {
           //Make an URI with dependency id.
           var uri=settings.paths[id]||id;
-          if(uri.slice(-3)!=".js")uri+=".js";
+          if(/^\w+$/.test(uri))uri+=".js";
           if(!/^(\w+:|\/)/.test(uri))uri=settings.baseUrl+uri;
           //If the Predeclaration Grammar is used.
           if(methods)(function(){
             //To used to launch the request.
             var launch=function(){
+              //Map the uri to id, before the "laod".
+              uriMap[uri]=id;
               load(uri,function(){
                 //Trigger the onloaded syncronous event.
                 onloaded();
@@ -222,12 +226,18 @@ var define,require;
           })();
           //Other case that Predeclaration Grammar isn't used.
           //Launch immediately the request.
-          else load(uri,function(){
-            //Trigger the onloaded syncronous event.
-            onloaded();
-            //Get the exports while the module is resolved, and use it'as the result.
-            modules[id].getExports(onresult);
-          },onerror);
+          else {
+            //Map the uri to id, before the "laod".
+            uriMap[uri]=id;
+            load(uri,function(){
+              //Trigger the onloaded syncronous event.
+              onloaded();
+              //Get the exports while the module is resolved, and use it'as the result.
+              modules[id].getExports(function(exports){
+                onresult(exports);
+              });
+            },onerror);
+          };
         };
         //Define the loading error internal event handle
         function onerror(type){
@@ -237,12 +247,12 @@ var define,require;
         function onloaded(){
           //Define this module if it's not existed yet.
           if(!modules[id]){
-            //Get the last item of anonymousDefinationQueue as this module if that's not empty,
+            //Get the last item of anonymousQueue as this module if that's not empty,
             //else define a empty module as this module.
-            var defination=anonymousDefinationQueue.pop();
-            defination?define.apply(null,[id].concat(defination)):define(id,{});
-            //Clear the anonymousDefinationQueue.
-            anonymousDefinationQueue=[];
+            var definition=anonymousQueue.pop();
+            definition?define.apply(null,[id].concat(definition)):define(id,{});
+            //Clear the anonymousQueue.
+            anonymousQueue=[];
           };
         };
       })(i);
@@ -261,6 +271,27 @@ var define,require;
       };
       return dependency;
     };
+    //To used to get the uri of current SCRIPT tag.
+    //However, it's sometimes got impossibly, because some browsers or not a
+    //browser environment don't support any way to get this value.
+    var getCurrentUri=function(){
+      //Return a empty function, if environment is not Window.
+      if(environment!="Window")return function(){};
+      //Return the function that return currentScript, if it's supported.
+      if("currentScript" in document)return function(){
+        return document.currentScript;
+      };
+      //Return the uri of interactiving SCRIPT, if readyState is supported.
+      if("readyState" in document.createElement("script"))
+        return function(){
+          var i,s=document.getElementsByTagName("script");
+          for(i=0;i<s.length;i++)
+            if(s[i].readyState=="interactive"&&s[i].uri)
+              return s[i].uri;
+        };
+      //Otherwise, return a emtpy function.
+      return function(){};
+    }();
   })();
   
   /************************* FAKE SECTION *************************/
@@ -372,29 +403,32 @@ var define,require;
       var initScript=script.onload===null
         //To initialize SCRIPT element for standard browsers.
         ?function(script,onload){
-          script.onload=function(){
-            script.onload=null;
+          script.addEventListener("load",handle);
+          function handle(){
+            script.removeEventListener("load",handle);
             onload();
-          },script.async=true;
+          };
         }
         //To initialize SCRIPT element for IE8-.
         :function(script,onload){
-          script.onreadystatechange=function(){
+          script.attachEvent("onreadystatechange",handle);
+          function handle(){
             if(!isCompleted.test(script.readyState))return;
-            script.onreadystatechange=null;
+            script.detachEvent("onreadystatechange",handle);
             onload();
-          },script.defer="defer";
+          };
         };
       //To send a request to server with SCRIPT element.
       return function(uri,onload,onerror){
         //Create and initialize a SCRIPT element.
         var script=document.createElement("script");
+        script.async=true,script.defer="defer";
         initScript(script,function(){
           head.removeChild(script),onload();
         }),script.onerror=function(){
           head.removeChild(script);
           onerror&&onerror("DOM");
-        },script.src=uri;
+        },script.src=script.uri=uri;
         //Insert the SCRIPT to HEAD and considered IE6-.
         head.insertBefore(script,head.firstChild);
       };
