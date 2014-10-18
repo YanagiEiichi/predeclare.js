@@ -1,0 +1,45 @@
+﻿<style>
+body {
+  width:200mm;
+  padding:5mm;
+  margin:0px auto;
+  background:#FFF;
+  color:#333;
+  font:12pt/2
+    'Menlo',
+    'Monaco',
+    'Source Code Pro',
+    'Consolas',
+    'Inconsolata',
+    'Ubuntu Mono',
+    'DejaVu Sans Mono',
+    'Courier New',
+    'Droid Sans Mono',
+    'Hiragino Sans GB',
+    '微软雅黑',
+    monospace;
+}
+p {text-indent:2em;}
+@media screen {
+  html {background:#F6F6F6;}
+  body {
+    border:solid #CCC;border-width:0px 1px;
+  }
+}
+</style>
+<h1>predeclare.js 中文介绍</h1>
+<h2>模块同异步的概念</h2>
+<p>predeclare.js的模块有两种工作方式，一种是异步的，一种是同步的。普通的模块都是异步的，类似require.js中模块的概念。所谓同步模式的模块就是可以直接得到exports的模块，它可以在同步程序中被使用。
+<h2>define函数</h2>
+<p>define函数有三个参数，第一个是要定义的模块ID，第二个是依赖列表，第三个是factory函数。
+<p>模块ID是一个可选参数，如果省略的话它默认是当前执行的JS文件的URI，这种情况下如果当前程序不在一个JS文件中则会抛出异常。模块ID可以使用Predeclaration语法。如果使用了Predeclaration语法，那么这个模块会被定义为同步模式，其exports默认会被设置为Predeclaration语法所定义的对象。
+<p>依赖列表也是一个可选参数，如果模块没有依赖于别的模块的话可以不传入这个参数或者传入一个空数组。如果依赖列表中不存在任何异步模式的模块的话，当前定义的模块就会自动进入同步模式。这种情况下，所有依赖模块的exports都可以直接获取并作为factory函数的参数使用。而这个模块的exports就是factory处理完后的结果。
+<p>当所依赖的模块没有定义时，如果这个ID使用了Predeclaration语法来定义，那么此处直接将这个语法定义出来的对象作为一个虚拟模块的exports来使用，也就是说这个模块被强制以同步模式定义。
+<p>无论依赖模块ID使用Predeclaration语法定义还是使用普通的字符串定义，程序都需要将模块ID作为JS文件的URI向服务器发起请求，这样才能加装这个模块。而在请求完成后，如果模块依然没有定义，程序则会以空JavaScript对象作为exports来定义这个模块。最后，如果之前有使用虚拟exports的话则把模块定义完毕后的真实exports对应回去。
+<p>最后一个参数factory是必选参数。模块的exports通常都是由factory函数计算出来的。它会在依赖列表中的所有模块都计算出exports后将这些exports以依赖列表的顺序作为参数列表调用这个factory函数。factory函数的返回值如果不为undefined或null的话会被作为当前模块的exports使用。
+<h2>require函数</h2>
+<p>require函数有两个参数，一个是请求模块列表，另一个是回调函数。当require函数被执行时，实际上会使用define函数定义一个临时模块。请求的模块列表作为这个匿名模块的依赖列表。回调函数会被作为这个匿名模块的factory函数。
+<p>如果这个临时模块被定义为同步模式的，那么require函数会返回这个模块的exports。否则这个临时模块是同步模式的，这意味着无法取到exports，所以不会有返回值。
+<h2>Predeclaration语法</h2>
+<p>模块ID可以使用这种语法来定义，它会强制让模块以同步方式工作。即使模块没有真正加装，预声明的函数也可以先调用。这些函数的调用上下文及顺序会被记录，等到真正的模块加装完成后再执行同样的动作。当然，预声明函数的返回值仅可作为其本身的方法链使用，不能作为其它用途。
+<p>Predeclaration语法从模块名中的“#”号开始解析，其后可以声明一组方法名，用逗号隔开。还可以在“#”后面加个“!”，表示即使模块初始化也暂时不去抓取依赖，只有等到预声明的任何一个方法首次被调用时才开始请求依赖。
