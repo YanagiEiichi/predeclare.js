@@ -1,0 +1,19 @@
+﻿<script src="../predeclare.js"></script>
+<h1>0</h1>
+<script>
+require(["jquery#!click","mylog"],function($,log){
+  log("Hello, i am the require callback code.");
+  log("Now, i am running before the jQuery loading completely.");
+
+  log("The timer is already worked, whatever the loading state of jQuery.");
+  //Make the number text of H1 element increase automatically.
+  var node=document.querySelector("h1").childNodes[0];
+  setInterval(function(){ node.data++; });
+
+  //Log the number text of H1 element, when document is clicked.
+  //This code is depend on jQuery.
+  $(document).click(function(){
+    log(node.data);
+  });
+});
+</script>

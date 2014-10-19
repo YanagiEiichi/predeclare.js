@@ -1,4 +1,5 @@
 ﻿<script src="../predeclare.js"></script>
+<h1>Check your console please.</h1>
 <script>
 //          This methods is not defined in jQuery,
 //          an error can be throw, if it's called.
@@ -9,7 +10,7 @@ require(["jquery#!css,each,one,fuck","mylog"],function($,log){
   log("Look! I'm using the 'log' function to put message.");
   $("body").css("background","#CCC").each(function(){
     log("Here is jQuery's 'each' function callback.");
-    log("That's means jQuery has loaded completely.");
+    log("That means jQuery has loaded completely.");
     log("OK, you can see the background color has changed.");
     log("Why don't you try to click it?");
   }).one("click",function(){
