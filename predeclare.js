@@ -16,7 +16,7 @@ var define,require;
       //An exception will be occurring if run in a WSH environment.
       if(global=="[object]")e="Window"; //IE7-
     }catch(x){ e="WSH"; };
-    if(e=="DOMWindowConstructor")e="Window"; //Safari
+    if(/Window/.test(e))e="Window"; //Safari, UC, etc.
     return e;
   }();
   //To make an error.
