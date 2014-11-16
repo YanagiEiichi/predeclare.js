@@ -44,14 +44,10 @@ var define,require;
   var globalEval=global.execScript||eval;
 
   /************************** AMD SECTION *************************/
-  //Define the module collection. The module collection is actually
-  //a function collection, every items are function those use to get
-  //module. Because the module is initially a unresolved module (
-  //that means the factory function of the module has not yet be
-  //called). Those function return a module whatever unresolved or
-  //resolved, but it's callback always pass a resolved module.
   (function(){
-    var modules={},requireId=1,anonymousQueue=[],uriMap={};
+    //Define the module collection.
+    var modules={};
+    var requireId=1,anonymousQueue=[],uriMap={};
     //Define the "require" interface.
     require=wrap(function(dependencies,callback){
       //Make the function overload.
@@ -67,7 +63,7 @@ var define,require;
       var args=[];
       define(id,deps,function(){
         callback&&callback.apply(this,arguments);
-        return wasstr?arguments[0]:Array.prototype.slice(arguments,0);
+        return wasstr?arguments[0]:Array.prototype.slice.call(arguments,0);
       });
       return modules[id].getExports();
     });
@@ -117,7 +113,7 @@ var define,require;
       //dependencies are resolved.
       var onresolve;
       //Define a "getExports" method that's used to get the "exports".
-      //It's a asynchronous method, pass the "exports" back by callback function.
+      //It's a asynchronous method, you can get all "exports" by callback arguments.
       //If the "exports" is not existed, wait until it's existing.
       module.getExports=function(){
         //Set the event handle of the internal event "onresolve".
